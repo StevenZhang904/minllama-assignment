@@ -44,7 +44,9 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
         """
         # todo
-        raise NotImplementedError
+        rms = torch.sqrt(x.norm(2, dim=-1, keepdim = True ) + self.eps)
+        x /= rms
+        return x
 
     def forward(self, x):
         """
@@ -94,7 +96,9 @@ class Attention(nn.Module):
         attention matrix before applying it to the value tensor.
         '''
         # todo
-        raise NotImplementedError
+        output = torch.matmul(query, key.T) * (1/ torch.sqrt(key.size[-1]))
+        output = torch.matmul(F.softmax(output, dim = -1),value)
+        return output
 
     def forward(
         self,
@@ -197,7 +201,12 @@ class LlamaLayer(nn.Module):
            output of the feed-forward network
         '''
         # todo
-        raise NotImplementedError
+        x = self.attention_norm(x)
+        unnorm_self_attention = self.attention(x) + x 
+        output = self.attention_norm(unnorm_self_attention)
+        output = self.feed_forward(output) + unnorm_self_attention
+        return output
+
 
 class Llama(LlamaPreTrainedModel):
     def __init__(self, config: LlamaConfig):
