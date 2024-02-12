@@ -84,7 +84,7 @@ class Attention(nn.Module):
     def compute_query_key_value_scores(self,
                                        query: torch.Tensor,
                                        key: torch.Tensor,
-                                       value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                                       value: torch.Tensor) -> torch.Tensor:
         '''
         Jointly compute Scaled Dot Product Attention (see Section 3.2.1 in
         https://arxiv.org/abs/1706.03762 for details). The query, key, and
@@ -266,10 +266,13 @@ class Llama(LlamaPreTrainedModel):
         return logits, h
 
     @torch.inference_mode()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx, max_new_tokens, temperature=1.0):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
+        We perform this generation using basic temperature sampling. Note that we are not using
+        nucleus sampling (i.e. limiting ourselves to sampling from the top-k most probable tokens
+        at each timestep), though this is often used in conjunction with temperature sampling,
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         Also note this is a super inefficient version of sampling with no key/value cache.
         """
@@ -292,6 +295,8 @@ class Llama(LlamaPreTrainedModel):
                 2) scale (divide) these probabilities by the given temperature.
                 3) normalize the scaled logits with a softmax to obtain scaled probabilities.
                 4) sample from the scaled probability distribution.
+
+                Note that we are not using top-k sampling/nucleus sampling in this procedure.
                 '''
                 idx_next = None
             # append sampled index to the running sequence and continue
