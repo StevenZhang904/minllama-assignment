@@ -44,8 +44,8 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
         """
         # todo
-        rms = torch.sqrt(x.norm(2, dim=-1, keepdim = True ) + self.eps)
-        x /= rms
+        rms = torch.rsqrt(x.norm(2, dim=-1, keepdim = True ) + self.eps)
+        x *= rms
         return x
 
     def forward(self, x):
@@ -96,7 +96,7 @@ class Attention(nn.Module):
         attention matrix before applying it to the value tensor.
         '''
         # todo
-        output = torch.matmul(query, key.T) * (1/ torch.sqrt(key.size[-1]))
+        output = torch.matmul(query, key.mT) * (1 / math.sqrt(key.shape[-1]))
         output = torch.matmul(F.softmax(output, dim = -1),value)
         return output
 
@@ -283,11 +283,11 @@ class Llama(LlamaPreTrainedModel):
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] # crop to just the final time step
             # todo
-            raise NotImplementedError
+            # raise NotImplementedError
 
             if temperature == 0.0:
                 # select the single most likely index
-                idx_next = None
+                idx_next = torch.max(logits, dim=-1)
             else:
                 '''
                 Perform temperature sampling:
@@ -298,7 +298,9 @@ class Llama(LlamaPreTrainedModel):
 
                 Note that we are not using top-k sampling/nucleus sampling in this procedure.
                 '''
-                idx_next = None
+                logits /= temperature
+                probabilities = torch.softmax(logits, dim=-1)
+                idx_next = torch.multinomial(probabilities, 1).squeeze(-1)
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 
