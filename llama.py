@@ -44,9 +44,9 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
         """
         # todo
-        rms = torch.rsqrt(x.norm(2, dim=-1, keepdim = True ) + self.eps)
-        x *= rms
-        return x
+        rms = torch.rsqrt(x.to(torch.float32).pow(2).mean(-1, keepdim=True) + self.eps)
+        return x*rms
+        # return x
 
     def forward(self, x):
         """
@@ -96,8 +96,14 @@ class Attention(nn.Module):
         attention matrix before applying it to the value tensor.
         '''
         # todo
-        output = torch.matmul(query, key.mT) * (1 / math.sqrt(key.shape[-1]))
-        output = torch.matmul(F.softmax(output, dim = -1),value)
+        # output = torch.matmul(query, key.mT) * (1 / math.sqrt(key.shape[-1]))
+        # attention = F.softmax(output, dim = -1)
+        # attention = self.attn_dropout(attention)
+        # output = torch.matmul(attention,value)
+        output = torch.matmul(query, key.transpose(-2, -1)) * (1 / math.sqrt(self.head_dim))
+        attention = F.softmax(output, dim=-1)
+        attention = self.attn_dropout(attention)
+        output = torch.matmul(attention, value)
         return output
 
     def forward(
@@ -201,10 +207,19 @@ class LlamaLayer(nn.Module):
            output of the feed-forward network
         '''
         # todo
-        x = self.attention_norm(x)
-        unnorm_self_attention = self.attention(x) + x 
-        output = self.attention_norm(unnorm_self_attention)
-        output = self.feed_forward(output) + unnorm_self_attention
+        # x = self.attention_norm(x)
+        # unnorm_self_attention = self.attention(x) + x 
+        # output = self.attention_norm(unnorm_self_attention)
+        # output = self.feed_forward(output) + unnorm_self_attention
+        # return output
+
+        norm_x = self.attention_norm(x)
+        attn_output = self.attention(norm_x)
+        attn_output += x
+        norm_attn_output = self.ffn_norm(attn_output)
+        ffn_output = self.feed_forward(norm_attn_output)
+        output = ffn_output + attn_output
+
         return output
 
 
